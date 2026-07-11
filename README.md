@@ -79,6 +79,22 @@ pip install -e ".[dev]"
 pytest   # 14 tests
 ```
 
+If `pip install -e` fails with `missing the 'build_editable' hook`, your
+`setuptools` predates PEP 660 support (added in `setuptools>=64`). Either:
+
+```bash
+pip install --upgrade pip setuptools wheel
+pip install -e ".[dev]"
+```
+
+or skip the install entirely and run everything with `PYTHONPATH` instead,
+which always works regardless of `setuptools` version:
+
+```bash
+PYTHONPATH=. pytest
+PYTHONPATH=. python3 examples/robot_kitchen.py
+```
+
 ## Layout
 
 ```

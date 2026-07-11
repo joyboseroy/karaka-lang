@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=64.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "karaka-lang"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Paninian karaka-based calling convention for logic/relational programming"
 readme = "README.md"
 requires-python = ">=3.10"
