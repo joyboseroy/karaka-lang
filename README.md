@@ -1,6 +1,6 @@
 # karaka-lang
 
-A proof-of-concept for a **Paninian Sanskrit kāraka-based calling convention**:
+A proof-of-concept for a **Paninian kāraka-based calling convention**:
 predicate arguments are bound by grammatical role (agent, object,
 instrument, recipient, source, locus) instead of by position, so argument
 order is irrelevant to meaning. This directly targets a real usability
