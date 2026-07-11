@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "karaka-lang"
-version = "0.2.0"
+version = "0.3.0"
 description = "A Paninian karaka-based calling convention for logic/relational programming"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,6 +13,7 @@ authors = [{ name = "Joy Bose" }]
 
 [project.optional-dependencies]
 dev = ["pytest"]
+vidyut = ["vidyut"]
 
 [tool.setuptools.packages.find]
 include = ["karaka_lang*"]

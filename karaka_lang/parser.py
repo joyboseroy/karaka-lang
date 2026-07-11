@@ -42,19 +42,27 @@ def tokenize(sentence: str) -> list[Token]:
     """Split whitespace-separated words and resolve each to a kāraka role
     by matching its suffix. A real implementation replaces this with
     vidyut-cheda-style sandhi segmentation + morphological tagging --
-    word boundaries in real text aren't whitespace-delimited."""
+    word boundaries in real text aren't whitespace-delimited.
+
+    Query variables: a word beginning with '?' is a variable. Its role
+    still comes from its suffix, so '?kah' is 'unknown agent' (who?) and
+    '?kim' style forms can be spelled '?xam' for 'unknown object' (what?).
+    The stem keeps its leading '?' so codegen can recognize it."""
     tokens = []
     for word in sentence.strip().split():
         word_clean = word.strip(",.")
-        if word_clean.endswith(VERB_MARKER):
-            tokens.append(Token(surface=word_clean, stem=word_clean[:-len(VERB_MARKER)],
+        is_var = word_clean.startswith("?")
+        body = word_clean[1:] if is_var else word_clean
+        if body.endswith(VERB_MARKER) and not is_var:
+            tokens.append(Token(surface=word_clean, stem=body[:-len(VERB_MARKER)],
                                  role=None, is_verb=True))
             continue
         matched = False
         for suf in _SUFFIXES_BY_LENGTH:
-            if word_clean.endswith(suf) and len(word_clean) > len(suf):
-                stem = word_clean[: -len(suf)]
-                tokens.append(Token(surface=word_clean, stem=stem,
+            if body.endswith(suf) and len(body) > len(suf):
+                stem = body[: -len(suf)]
+                tokens.append(Token(surface=word_clean,
+                                     stem=("?" + stem) if is_var else stem,
                                      role=KARAKA_SUFFIXES[suf]))
                 matched = True
                 break

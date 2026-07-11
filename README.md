@@ -1,6 +1,6 @@
 # karaka-lang
 
-[![tests](https://img.shields.io/badge/tests-14%2F14%20passing-brightgreen)](tests/test_parser.py)
+[![tests](https://img.shields.io/badge/tests-22%2F22%20passing-brightgreen)](tests/test_parser.py)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
 
@@ -70,13 +70,59 @@ Arity beyond the six classical roles doesn't require more roles: any
 role's value can be a nested `Frame` instead of a leaf string, and both
 codegen targets recurse through it automatically.
 
+## Real Paninian morphology (optional)
+
+With `pip install vidyut`, the toy suffix table is replaced by actual
+Ashtadhyayi derivation via [vidyut-prakriya](https://github.com/ambuda-org/vidyut).
+Declined forms are generated through the real rule engine, and every
+analysis carries its full sutra trace:
+
+```python
+from karaka_lang import VidyutResolver
+
+r = VidyutResolver()
+r.add_stems({"nara": "Pum", "grAma": "Pum", "aSva": "Pum"})
+
+print(r.explain("aSvena"))
+# aSvena = aSva + Trtiya (karana), derived by sutras:
+#   1.2.45 -> 4.1.2 -> 1.3.7 -> 1.3.9 -> 1.4.13 -> 7.1.12 -> ... -> 8.4.68
+
+frame = r.parse("naraH grAmam aSvena gacCati", verb_forms={"gacCati": "gam"})
+# Frame(gam, karana=aSva, karma=grAma, karta=nara)
+```
+
+Closed lexicon by design (a symbol table), singular forms, default
+vibhakti-to-karaka mapping. See `docs/ROADMAP.md` for what a full version
+needs.
+
+## Query mode
+
+A role can be a variable. A frame with any variable compiles to a query
+instead of a write, from the same `Frame` type:
+
+```python
+from karaka_lang import parse, compile_frame
+
+compile_frame(parse("robotah pakasthanam gacchati"), target="cypher")
+# MERGE (e:Event {verb: "gaccha"}) ...          <- assertion: a write
+
+compile_frame(parse("?kah pakasthanam gacchati"), target="cypher")
+# MATCH (e:Event {verb: "gaccha"})
+# MATCH (e)-[:KARMA]->(:Entity {name: "pakasthan"})
+# MATCH (e)-[:KARTA]->(k:Entity)
+# RETURN k.name                                  <- question: WHO goes?
+
+compile_frame(parse("?kah pakasthanam gacchati"), target="prolog")
+# event(E, gaccha), karma(E, pakasthan), karta(E, K).
+```
+
 ## Install
 
 ```bash
 git clone https://github.com/joyboseroy/karaka-lang.git
 cd karaka-lang
 pip install -e ".[dev]"
-pytest   # 14 tests
+pytest   # 22 tests (19 pass + 3 skip without vidyut)
 ```
 
 If `pip install -e` fails with `missing the 'build_editable' hook`, your
@@ -99,47 +145,53 @@ PYTHONPATH=. python3 examples/robot_kitchen.py
 
 ```
 karaka_lang/
-  parser.py   -- tokenizer + karaka resolver -> Frame (the AST, now supports nesting)
-  sutra.py    -- SutraEngine (manual priority) + SubsumptionEngine (derived, with AmbiguityError)
-  codegen.py  -- Frame -> Prolog facts / Cypher graph writes, recurses through nested frames
+  parser.py       -- tokenizer + karaka resolver -> Frame (nesting + ?variables)
+  morphology.py   -- real Ashtadhyayi morphology via vidyut-prakriya (optional)
+  sutra.py        -- SutraEngine (manual priority) + SubsumptionEngine
+                     (derived specificity, AmbiguityError, nested-frame facts)
+  codegen.py      -- Frame -> Prolog / Cypher, writes AND queries (compile_frame)
 examples/
-  robot_kitchen.py               -- order-invariance demo
-  rylands_fletcher.py            -- multi-role legal relation + rule resolution + codegen
-  arity_and_ordering_fixes.py    -- nested frames + subsumption engine + ambiguity handling
+  robot_kitchen.py                  -- order-invariance demo
+  rylands_fletcher.py               -- multi-role legal relation + rules + codegen
+  arity_and_ordering_fixes.py       -- nested frames + subsumption + ambiguity
+  real_morphology_and_queries.py    -- vidyut morphology with sutra traces + query mode
 tests/
-  test_parser.py                 -- 14 tests, all currently passing
+  test_parser.py                    -- 22 tests (3 skip without vidyut)
 docs/
-  DESIGN.md                      -- architecture, prior-art review, roadmap
-  position-paper.md              -- research framing, arXiv-style, full related-work review
-  medium-article.md              -- the published write-up (same text as the Medium post)
+  DESIGN.md                         -- architecture, prior-art review
+  ROADMAP.md                        -- beyond-toy status and what's next
+  position-paper.md                 -- research framing, arXiv-style
+  medium-article.md                 -- the published write-up
+.github/workflows/tests.yml         -- CI: Python 3.10/3.11/3.12, with and without vidyut
 ```
 
 ## What this deliberately does not do
 
-- **Real Sanskrit morphology.** The suffix table here is a fixed toy
-  (a-stem masculine only). Production morphology should bind to
-  [`vidyut-prakriya`](https://github.com/ambuda-org/vidyut), which is
-  actively implementing the actual Ashtadhyayi declension rules.
-- **Real sandhi segmentation.** Word boundaries here are whitespace.
+- **Sandhi segmentation.** Word boundaries here are whitespace. Real
+  merged Sanskrit text needs
   [`vidyut-cheda`](https://github.com/ambuda-org/vidyut) or
   [`kmadathil/sanskrit_parser`](https://github.com/kmadathil/sanskrit_parser)'s
-  dynamic-programming sandhi-split search are the right components to bind
-  to for real text.
+  dynamic-programming sandhi-split search. Planned; see `docs/ROADMAP.md`.
+- **Verb-conditioned case mapping.** The vibhakti-to-karaka mapping is
+  the default correspondence. Passives and verbs governing unusual cases
+  break it; a per-verb table is the fix. See `docs/ROADMAP.md`.
 - **Fully automatic rule-conflict resolution.** `SubsumptionEngine` derives
   specificity from each rule's *declared* condition set and correctly
   refuses to guess on genuine ambiguity, but those condition sets are
   still hand-written, not extracted automatically from arbitrary rule
-  logic. See `docs/DESIGN.md` / `docs/position-paper.md` §6.
-- **Control flow.** This is a declarative/relational layer (facts + rules,
-  like Prolog), not a general-purpose imperative or functional language.
-  Kāraka roles have nothing to say about loops or mutation.
+  logic. See `docs/position-paper.md` §6.
+- **Control flow.** This is a declarative/relational layer (facts + rules
+  + queries, like Prolog), not a general-purpose imperative or functional
+  language. Kāraka roles have nothing to say about loops or mutation.
 
 ## Status
 
-Proof-of-concept. 14/14 tests passing. Two of the four original limitations
-(fixed arity ceiling, non-composable manual rule priority) have been
-addressed per reviewer feedback. See `docs/position-paper.md` §6 for what
-that resolution does and doesn't cover. [Published on Medium](https://joyboseroy.medium.com/i-used-a-2-500-year-old-sanskrit-grammar-to-fix-a-modern-programming-problem-3fbc4819b0b9);
+v0.3.0. 22/22 tests passing (19 without vidyut installed; the 3
+morphology tests skip cleanly). CI runs the suite on Python 3.10 through
+3.12, both with and without vidyut. Real Ashtadhyayi-backed morphology,
+nested-frame rule conditions, and query mode were added after the
+initial release; `docs/ROADMAP.md` tracks what is done and what is next.
+[Published on Medium](https://joyboseroy.medium.com/i-used-a-2-500-year-old-sanskrit-grammar-to-fix-a-modern-programming-problem-3fbc4819b0b9);
 not yet submitted to arXiv or published to PyPI.
 
 ## License

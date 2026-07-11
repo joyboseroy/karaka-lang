@@ -186,3 +186,101 @@ def test_subsumption_engine_raises_on_genuine_ambiguity():
     with pytest.raises(AmbiguityError):
         engine.apply(frame)
 
+
+
+# --- query mode: frames with variables compile to queries ---------------
+
+def test_variable_role_parses():
+    f = parse("?kah pakasthanam gacchati")   # WHO goes to the kitchen?
+    assert f.roles["karta"] == "?k"
+    from karaka_lang import has_variables
+    assert has_variables(f)
+
+
+def test_cypher_query_mode():
+    from karaka_lang import compile_frame
+    f = parse("?kah pakasthanam gacchati")
+    out = compile_frame(f, target="cypher")
+    assert "MATCH" in out and "MERGE" not in out
+    assert "RETURN k.name" in out
+    assert '(:Entity {name: "pakasthan"})' in out
+
+
+def test_prolog_query_mode():
+    from karaka_lang import compile_frame
+    f = parse("?kah pakasthanam gacchati")
+    out = compile_frame(f, target="prolog")
+    assert "event(E, gaccha)" in out
+    assert "karta(E, K)" in out          # variable, capitalized
+    assert "karma(E, pakasthan)" in out  # constant stays constant
+
+
+def test_compile_frame_dispatches_write_vs_query():
+    from karaka_lang import compile_frame
+    write = compile_frame(parse("robotah pakasthanam gacchati"), target="cypher")
+    query = compile_frame(parse("?kah pakasthanam gacchati"), target="cypher")
+    assert "MERGE" in write and "MATCH" not in write
+    assert "MATCH" in query and "MERGE" not in query
+
+
+# --- recursive fact extraction (paper section 7, item 3) ----------------
+
+def test_subsumption_rules_can_condition_on_nested_subevents():
+    rainfall = Frame("varsa", {"karta": "megh"})
+    flood = Frame("hara", {"karta": "man", "karana": rainfall})
+    engine = SubsumptionEngine()
+    engine.add(SubsumptionSutra(
+        name="general",
+        requires=frozenset({"verb=hara"}),
+        transform=lambda f: Frame(f.verb, {**f.roles, "cause": "unspecified"}),
+    ))
+    engine.add(SubsumptionSutra(
+        name="natural-cause-exception",
+        requires=frozenset({"verb=hara", "karana.verb=varsa"}),  # nested fact!
+        transform=lambda f: Frame(f.verb, {**f.roles, "cause": "act-of-nature"}),
+    ))
+    resolved = engine.apply(flood)
+    assert resolved.roles["cause"] == "act-of-nature"
+
+
+# --- real morphology via vidyut (skipped if not installed) ---------------
+
+def test_vidyut_real_declension_roundtrip():
+    from karaka_lang import HAS_VIDYUT
+    if not HAS_VIDYUT:
+        pytest.skip("vidyut not installed")
+    from karaka_lang import VidyutResolver
+    r = VidyutResolver()
+    r.add_stem("deva")
+    # devena is the real Trtiya (instrumental) of deva per the Ashtadhyayi
+    analyses = r.analyze("devena")
+    assert len(analyses) == 1
+    a = analyses[0]
+    assert a.stem == "deva" and a.role == "karana"
+    assert len(a.sutra_trace) > 0        # derivation is traceable to sutras
+
+
+def test_vidyut_parse_full_sentence():
+    from karaka_lang import HAS_VIDYUT
+    if not HAS_VIDYUT:
+        pytest.skip("vidyut not installed")
+    from karaka_lang import VidyutResolver
+    r = VidyutResolver()
+    r.add_stems({"nara": "Pum", "grAma": "Pum", "aSva": "Pum"})
+    # naraH grAmam aSvena gacCati : the man goes to the village by horse
+    frame = r.parse("naraH grAmam aSvena gacCati", verb_forms={"gacCati": "gam"})
+    assert frame.verb == "gam"
+    assert frame.roles["karta"] == "nara"
+    assert frame.roles["karma"] == "grAma"
+    assert frame.roles["karana"] == "aSva"
+
+
+def test_vidyut_rejects_unknown_words():
+    from karaka_lang import HAS_VIDYUT
+    if not HAS_VIDYUT:
+        pytest.skip("vidyut not installed")
+    from karaka_lang import VidyutResolver
+    r = VidyutResolver()
+    r.add_stem("deva")
+    with pytest.raises(ValueError):
+        r.parse("xyzzyH gacCati", verb_forms={"gacCati": "gam"})

@@ -78,14 +78,19 @@ class AmbiguityError(Exception):
     would add a rule to resolve an otherwise-undecided conflict."""
 
 
-def _facts(frame: Frame) -> set[str]:
+def _facts(frame: Frame, prefix: str = "") -> set[str]:
     """The set of atomic conditions this frame satisfies, used to check
-    subsumption. A real system would extend this with sub-frame facts
-    (recursing into nested `sambandha` frames); this toy version checks
-    only the top-level verb and role presence, which is enough to
-    demonstrate the mechanism."""
-    facts = {f"verb={frame.verb}"}
-    facts |= {f"has:{role}" for role in frame.roles}
+    subsumption. Recurses into nested sub-frames: a nested Frame under
+    role R contributes facts prefixed with "R." -- e.g. a rainfall
+    sub-event under karana yields "karana.verb=varsa" and
+    "karana.has:karta". This lets rules condition on properties of
+    sub-events, not just the top-level frame (position paper section 7,
+    item 3)."""
+    facts = {f"{prefix}verb={frame.verb}"}
+    for role, value in frame.roles.items():
+        facts.add(f"{prefix}has:{role}")
+        if isinstance(value, Frame):
+            facts |= _facts(value, prefix=f"{prefix}{role}.")
     return facts
 
 
