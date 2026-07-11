@@ -1,5 +1,9 @@
 # karaka-lang
 
+[![tests](https://img.shields.io/badge/tests-14%2F14%20passing-brightgreen)](tests/test_parser.py)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
+
 A proof-of-concept for a **Paninian kāraka-based calling convention**:
 predicate arguments are bound by grammatical role (agent, object,
 instrument, recipient, source, locus) instead of by position, so argument
@@ -7,6 +11,10 @@ order is irrelevant to meaning. This directly targets a real usability
 problem in positional logic languages (Prolog's arity/mode brittleness) and
 compiles naturally to graph writes, since a role-labeled relation already is
 a small labeled-edge structure.
+
+📄 **[Read the write-up on Medium](https://joyboseroy.medium.com/i-used-a-2-500-year-old-sanskrit-grammar-to-fix-a-modern-programming-problem-3fbc4819b0b9)**:
+the motivation, what earlier "Sanskrit programming language" attempts
+missed, and a walkthrough of everything below.
 
 This is **not** "Python with Sanskrit keywords," and it is **not** a claim
 that Sanskrit is a superior general-purpose programming language. See
@@ -55,7 +63,7 @@ principle (general rule, then a more specific exception overrides it).
 Two versions exist: `SutraEngine` (manual integer priority) and
 `SubsumptionEngine` (specificity *derived* from each rule's declared
 condition set, which raises `AmbiguityError` instead of silently guessing
-when two rules' conditions don't subsume one another) — see
+when two rules' conditions don't subsume one another), see
 [`examples/arity_and_ordering_fixes.py`](examples/arity_and_ordering_fixes.py).
 
 Arity beyond the six classical roles doesn't require more roles: any
@@ -65,7 +73,7 @@ codegen targets recurse through it automatically.
 ## Install
 
 ```bash
-git clone <this repo>
+git clone https://github.com/joyboseroy/karaka-lang.git
 cd karaka-lang
 pip install -e ".[dev]"
 pytest   # 14 tests
@@ -86,8 +94,8 @@ tests/
   test_parser.py                 -- 14 tests, all currently passing
 docs/
   DESIGN.md                      -- architecture, prior-art review, roadmap
-  position-paper.md              -- research framing, arXiv-style
-  medium-article.md              -- accessible write-up
+  position-paper.md              -- research framing, arXiv-style, full related-work review
+  medium-article.md              -- the published write-up (same text as the Medium post)
 ```
 
 ## What this deliberately does not do
@@ -103,7 +111,7 @@ docs/
   to for real text.
 - **Fully automatic rule-conflict resolution.** `SubsumptionEngine` derives
   specificity from each rule's *declared* condition set and correctly
-  refuses to guess on genuine ambiguity — but those condition sets are
+  refuses to guess on genuine ambiguity, but those condition sets are
   still hand-written, not extracted automatically from arbitrary rule
   logic. See `docs/DESIGN.md` / `docs/position-paper.md` §6.
 - **Control flow.** This is a declarative/relational layer (facts + rules,
@@ -114,9 +122,10 @@ docs/
 
 Proof-of-concept. 14/14 tests passing. Two of the four original limitations
 (fixed arity ceiling, non-composable manual rule priority) have been
-addressed per reviewer feedback — see `docs/position-paper.md` §6 for what
-that resolution does and doesn't cover. Not yet published to arXiv or PyPI.
+addressed per reviewer feedback. See `docs/position-paper.md` §6 for what
+that resolution does and doesn't cover. [Published on Medium](https://joyboseroy.medium.com/i-used-a-2-500-year-old-sanskrit-grammar-to-fix-a-modern-programming-problem-3fbc4819b0b9);
+not yet submitted to arXiv or published to PyPI.
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT. See [`LICENSE`](LICENSE).
