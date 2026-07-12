@@ -1,4 +1,4 @@
-# The Kāraka Calling Convention: Semantic-Role Argument Binding for Logic Programming, via Pāṇinian Grammar
+# The Kāraka Calling Convention: Semantic-Role Argument Binding for Logic Programming
 
 **Position paper / work-in-progress report.**
 Category: cs.PL (Programming Languages), cross-list cs.AI, cs.CL
@@ -6,29 +6,30 @@ Category: cs.PL (Programming Languages), cross-list cs.AI, cs.CL
 ## Abstract
 
 Positional argument binding — `f(x, y, z)` assigning meaning by slot
-order — degrades predictably as arity grows, and logic programming
-suffers it worst: a five-argument Prolog predicate is a memory test. We
-present the *Kāraka Calling Convention* (KCC): predicate arguments are
-bound by a fixed vocabulary of six semantic roles (agent, object,
-instrument, recipient, source, locus), drawn from Pāṇinian Sanskrit
-grammar and carried morphologically by each argument, so that argument
-order is irrelevant to meaning and — because the vocabulary is
-predicate-independent, unlike keyword arguments or PropBank framesets —
-rewrite rules can be written once against a role and apply across all
-predicates. The central structural observation is that a parsed
-statement is already a labeled-edge graph, so the same object compiles
-directly to normalized Prolog facts and to property-graph writes, and a
-statement with an unbound role compiles to a query rather than an
-assertion: groundness alone decides between the two. Rule conflicts
-resolve by requirement-set subsumption in the utsarga/apavada
-(rule/exception) discipline, with incomparable rules rejected as
-compile-time ambiguity. We describe the design, a formal definition, a
-worked example, and a tested reference implementation with optional real
-Aṣṭādhyāyī morphology via vidyut-prakriya. A prior-art search conducted
-for this paper found one contemporaneous system using kāraka roles as
-call-site labels; we characterize the overlap precisely from its source
-and state what remains distinct. Measured readability benefit is open
-work, stated as such.
+order — degrades as arity grows, and logic programming suffers it worst:
+each position's semantics must be remembered rather than read off the
+call site, and keyword arguments only trade this for a vocabulary that is
+local to each predicate.
+
+We present the *Kāraka Calling Convention* (KCC): arguments are bound by
+a fixed vocabulary of six semantic roles (agent, object, instrument,
+recipient, source, locus), drawn from Pāṇinian Sanskrit grammar and
+carried morphologically by each argument. Because the vocabulary is
+predicate-independent, a rewrite rule written once against a role applies
+across all predicates — the property keyword arguments and PropBank
+framesets lack. A parsed statement is already a labeled-edge graph, so
+the same object compiles to Prolog facts and to property-graph writes
+with no lowering pass, and groundness alone decides whether a statement
+is an assertion or a query. Rule conflicts resolve by requirement-set
+subsumption (the Pāṇinian utsarga/apavada discipline), with incomparable
+rules rejected at registration as ambiguous.
+
+We give a formal definition, a worked end-to-end example, and a tested
+reference implementation with optional real Aṣṭādhyāyī morphology via
+vidyut-prakriya; a prior-art search found one contemporaneous system
+using kāraka roles as call-site labels, and we characterize the overlap
+from its source. Measured readability benefit is open work, stated as
+such.
 
 ## 1. Introduction
 
@@ -47,14 +48,15 @@ keywords into transliterated Sanskrit while leaving positional, C-like
 syntax untouched. This addresses none of the structural claims in Briggs's
 argument and is, in effect, orthographic rather than architectural.
 
-This paper reports on an attempt to take the architectural claim seriously
-and narrowly: **can kāraka roles function as a calling convention**,
-independent of any claim about Sanskrit as a human-facing surface syntax?
-Pāṇini is the inspiration for the role vocabulary and the rule-ordering
-discipline, not a source of validity for the claim itself. We restrict
-scope deliberately to logic/relational programming, where the
-positional-argument problem is sharpest and best documented, rather than
-claiming applicability to general-purpose or imperative languages.
+This paper takes the architectural claim seriously and narrowly: kāraka
+roles as a calling convention for logic/relational programming, where the
+positional-argument problem is sharpest. Pāṇini supplies the role
+vocabulary and the rule-ordering discipline; he is not a source of
+validity for the claim itself. The observation everything else in this
+paper follows from is structural: a statement whose arguments carry their
+own roles is already a labeled-edge graph, and a representation that is
+already a graph needs no lowering pass to become either a fact base or a
+query.
 
 ## 2. Related work
 
@@ -103,22 +105,14 @@ produces it, which neither Datalog nor RDF specify on their own: both are
 downstream data models, agnostic to how the roles attached to a given
 predicate were decided or named in the first place.
 
-**Computational Sanskrit infrastructure.** The Sanskrit Heritage Engine
-(Huet) provides a computational model of Pāṇinian grammar for parsing and
-generation. `vidyut` (Ambuda project) provides segmentation, sandhi
-utilities, and an in-progress full implementation of Ashtadhyayi word
-derivation (`vidyut-prakriya`). `kmadathil/sanskrit_parser` performs
-dynamic-programming sandhi-split search over real text, producing a DAG of
-valid segmentations that is then constrained into a projective dependency
-graph of kāraka relations — the closest existing system to "parse real
-Sanskrit text into kāraka frames," and explicit that both over- and
-under-generation remain open issues. A separate effort ("Implementing
-Pāṇini's Grammar," Language Log, 2023) implements roughly half of the
-Aṣṭādhyāyī's ~4,000 rules for word generation, and is explicit that
-automatic resolution of rule-application order was not solved — rules were
-manually ordered to produce valid output. We treat this as the current
-honest state of the art on that specific sub-problem and do not claim to
-improve on it (§6).
+**Computational Sanskrit infrastructure.** Huet's Sanskrit Heritage
+Engine, the `vidyut` toolkit (whose `vidyut-prakriya` this implementation
+binds to, §5), and `kmadathil/sanskrit_parser` (DP sandhi-split search
+into kāraka dependency graphs) are the serious computational-Sanskrit
+substrate; none is a programming language. A partial Rust implementation
+of the Aṣṭādhyāyī ("Implementing Pāṇini's Grammar," Language Log, 2023)
+documents that automatic rule-ordering remains unsolved there — rules
+were manually ordered — which calibrates what §4 does and does not claim.
 
 **Programming languages.** Keyword arguments (Python, Common Lisp),
 named-field structs (Rust), and named-parameter libraries for positional
@@ -147,53 +141,50 @@ instance of a now well-studied pattern; what this paper adds is not the
 pattern but its coupling to a fixed semantic-role vocabulary, which is
 what lets the rules be predicate-agnostic (§3.1).
 
-**Closest prior art: Prakash's Karaka language.** After an earlier draft of
-this paper claimed the niche was unoccupied, a prior-art search found it is
-not: Karaka (Prakash, 2026), published to the Rust crates registry in June
-2026 as `karaka-core`/`karaka-cli`, is a Devanagari-first imperative
-language in which the six classical kāraka roles form a fixed vocabulary
-for declaring function parameters and labeling call-site arguments (e.g.
-a function declares it expects a *karta* of some type, and a call binds it
-as `कर्ता: <value>`), alongside user-defined named labels. We verified this
-from the published source rather than secondhand description. The shared
-core — the six kārakas as a fixed, predicate-independent argument
-vocabulary — means that idea is no longer uniquely ours, and the fact that
-two implementations arose independently within months of each other is
-better read as evidence the idea is timely than as a priority dispute.
-What remains distinct in this work, verified against that source: Prakash's
-Karaka binds roles via explicit call-site labels in an imperative/OO
-language with a tree-walking interpreter; it has no morphological role
-marking (the role is a label prefix, not a case ending carried by the
-token), no compilation to relational facts or property graphs, no
-subsumption-ordered rewrite layer over role-labeled statements, and no
-assertion/query duality. Those four elements — morphological binding,
-graph-native compilation, subsumption-resolved rewriting, and query mode —
-together with the restriction to declarative/relational programming,
-constitute this paper's contribution as now claimed.
+**Closest prior art: Prakash's Karaka language.** After an earlier draft
+claimed this niche was unoccupied, a prior-art search found Karaka
+(Prakash, 2026), published to the Rust crates registry in June 2026: a
+Devanagari-first imperative language in which the six kāraka roles form a
+fixed vocabulary for declaring function parameters and labeling call-site
+arguments (`कर्ता: <value>`), alongside user-defined labels. We verified
+this from the published source rather than secondhand description. Two
+independent implementations within months of each other is better read as
+evidence the idea is timely than as a priority dispute. The verified
+differences:
+
+| | Prakash's Karaka (2026) | This work (KCC) |
+|---|---|---|
+| Role binding | explicit call-site labels | morphological (case ending on the token) |
+| Paradigm | imperative / OO, interpreter | declarative / relational |
+| Compilation | none (tree-walking) | Prolog facts + Cypher graph writes |
+| Rewrite layer | none | subsumption-ordered, ambiguity-rejecting |
+| Query duality | none | groundness decides assertion vs. query |
+
+The shared element — the six-role vocabulary — is therefore no longer
+uniquely ours; the composition in the right-hand column is what this
+paper claims (§8).
 
 **Sanskrit-based programming language specifications.** Khanganba & Jha
 (2020) specify "Sanskritam," a controlled-natural-language programming
-syntax based on natural Sanskrit, in which case morphology carries program
-semantics — the genitive marks assignment (following the Paninian metarule
-*ṣaṣṭhī sthāneyogā*), and the locative marks scope headers and conditions,
-mirroring the Aṣṭādhyāyī's own adhikāra convention. Their statements are
-copular and imperative sentences rather than role-labeled predicate calls,
-so kārakas do not function as a calling convention there, but it is the
-closest academic precedent for the more general idea that Sanskrit case
-morphology can carry programming-language semantics, and it independently
-corroborates that the Aṣṭādhyāyī's rule architecture rewards
-compiler-theoretic reading.
+syntax in which Sanskrit case morphology carries program semantics — the
+genitive marks assignment (per the Pāṇinian metarule *ṣaṣṭhī
+sthāneyogā*), the locative marks scope headers and conditions, mirroring
+the Aṣṭādhyāyī's own adhikāra convention. Kārakas are not a calling
+convention there, but it is the closest academic precedent for case
+morphology carrying programming-language semantics.
 
-To our knowledge — a claim now made with the humility of having had the
-previous version of it falsified — no existing system combines
-morphologically-marked kāraka role binding, direct compilation of
-role-labeled statements to both logic-programming facts and property-graph
-writes, subsumption-derived rule ordering, and an assertion/query duality
-in one design. The narrower components have precedents named above; the
-composition, and the restriction of the whole to declarative/relational
-programming, is what we claim.
+No existing system we could find combines morphologically-marked kāraka
+binding, dual compilation to logic facts and property-graph writes,
+subsumption-derived rule ordering, and an assertion/query duality — a
+claim now made with the humility of having had its broader predecessor
+falsified. The components have the precedents named above; the
+composition is what we claim.
 
 ## 3. Design: the Kāraka Calling Convention
+
+(Convention: prose uses IAST diacritics — kāraka, Pāṇini, Aṣṭādhyāyī —
+while code identifiers use their ASCII forms — `karta`, `karana` — since
+the implementation is ASCII-native.)
 
 A KCC statement consists of one verb (predicate) and up to six role-marked
 arguments — *karta* (agent), *karma* (object), *karana* (instrument),
@@ -217,51 +208,83 @@ A `Frame` is, incidentally, already a small labeled-edge graph structure
 (event node, role-labeled edges to argument nodes), which motivates the two
 compilation targets evaluated here: normalized Prolog facts (one binary
 predicate per role, avoiding positional-term degradation) and Cypher
-`MERGE` statements against a property graph (e.g. FalkorDB). Both codegen
-paths recurse through nested frames, emitting a fresh sub-event identifier
-and linking it from the parent by the role name — a Skolemization step, in
-the standard logic-programming sense: an existentially-quantified sub-event
-("there exists some flooding event that is the instrument here") is
-witnessed by a fresh constant rather than left as a bound variable, which
-is exactly what turns a nested, tree-shaped `Frame` into flat, indexable
+`MERGE` statements against a property graph (e.g. FalkorDB). Why this
+matters, rather than being a curiosity: it collapses the usual distance
+between a program and a knowledge base. In a conventional stack, getting
+from source code to something a graph database or reasoner can consume
+requires an extraction pipeline — parse, walk the AST, decide on a schema,
+emit triples. Here there is nothing to extract: the parsed statement is
+the graph, so a KCC program is simultaneously executable (as facts and
+queries), storable (as a property graph), and pattern-matchable (by any
+graph or Datalog engine) with no representation change at any step. Both
+codegen paths recurse through nested frames, emitting a fresh sub-event
+identifier and linking it from the parent by the role name — a
+Skolemization step, in the standard logic-programming sense: an
+existentially-quantified sub-event ("there exists some flooding event that
+is the instrument here") is witnessed by a fresh constant, which is
+exactly what turns a nested, tree-shaped `Frame` into flat, indexable
 relational tuples without losing the parent-child relationship.
 
 ### 3.1 Why this is not just keyword arguments with extra steps
 
-A fair question — raised independently by more than one reader of an
-earlier draft — is what a fixed six-role vocabulary buys over ordinary
-keyword arguments (`f(agent=x, instrument=y)`), which already give
-argument-order independence and human-readable call sites. The answer is
-not about readability at the call site, where the two are comparable. It
-is about whether the role vocabulary is **shared across predicates** or
-**local to each one**.
+Keyword arguments already give order-independence and readable call
+sites. The difference is a single property, stated first and defended
+after:
 
-Python keyword arguments, Rust named fields, and — concretely, since it is
-the largest existing system built on argument-role labeling — AMR's
-PropBank-derived `:ARG0`–`:ARG5` roles are all *predicate-relative*: each
-function, struct, or verb-sense frameset declares its own local mapping
-from name to meaning. PropBank makes this explicit in its frameset tables:
-`:ARG0` is glossed as "wanter" under the frameset `want-01`, "sleeper"
-under `sleep-01`, and "creator" under `develop-02` — three different
-meanings for the same label, resolved only by first looking up which
-frameset is in play. A kāraka role carries no such indirection: *karta*
-denotes "agent" for every predicate, by construction, because the role set
-is fixed by the grammar rather than declared per-predicate.
+> **Proposition (predicate-independence).** A role vocabulary is
+> *predicate-independent* iff the interpretation of a role does not
+> depend on which predicate it is attached to. A rewrite rule is
+> *predicate-agnostic* iff its applicability is decidable from
+> `facts(F)` alone, with no per-predicate lookup. A fixed,
+> predicate-independent vocabulary is what makes predicate-agnostic
+> rules well-defined.
 
-That difference is not aesthetic. It is what makes the rewrite rules in
-§4 possible in the general form they take: a rule can be written once
-against "any frame with a *karana*" and apply uniformly across every verb
-that happens to have an instrument, without first consulting a per-verb
-table to find out what that predicate calls its third argument. The same
-rule written against keyword arguments or ARG-numbered roles would need
-either a separate clause per function/frameset, or a manually maintained
-mapping from each local vocabulary back to a shared one — which is,
-notably, exactly the kind of mapping kāraka roles are already providing.
-The contribution, stated precisely: **a role vocabulary that is fixed and
-predicate-independent enables predicate-agnostic rewrite rules**; kāraka
-theory is the source of that particular fixed vocabulary and of the
-utsarga/apavada discipline for resolving rules once they're written this
-way, not the reason the underlying mechanism works.
+Python keyword names, Rust named fields, and PropBank's `:ARG0`–`:ARG5`
+(the largest deployed role-labeling system, underlying AMR) are all
+*predicate-relative*: PropBank's own framesets gloss `:ARG0` as "wanter"
+under `want-01`, "sleeper" under `sleep-01`, and "creator" under
+`develop-02` — the same label, three meanings, resolved only through a
+per-verb table. A kāraka role carries no such indirection: *karta* means
+agent for every predicate, by construction.
+
+The consequence is demonstrable, not aesthetic. The following rule names
+no verb:
+
+```python
+SubsumptionSutra(
+    name="mediated-transfer-classification",
+    requires=frozenset({"has:karana", "has:sampradana"}),
+    transform=lambda f: Frame(f.verb, {**f.roles, "class": "mediated-transfer"}))
+```
+
+Applied to two frames under *different* verbs — `hara` (causes harm) and
+`dada` (gives) — it classifies both, and leaves a two-role motion frame
+untouched (output generated by the test suite, `test_predicate_agnostic_
+rule_applies_across_different_verbs`):
+
+```
+Frame(hara, class=mediated-transfer, karana=jal, karta=man, sampradana=ksetr)
+Frame(dada, class=mediated-transfer, karana=dhan, karta=nar, sampradana=putr)
+```
+
+Written against keyword arguments or ARG-numbered roles, this requires
+either one clause per predicate or a maintained mapping from each local
+vocabulary to a shared one — and that mapping *is* a kāraka layer,
+reinvented.
+
+Two honest qualifications. First, the vocabulary property alone is
+replicable anywhere: globally reserving `agent`, `instrument`,
+`recipient` as keyword names in any language reproduces it, and Prakash's
+Karaka (§2) does essentially this with the Sanskrit terms. The vocabulary
+is therefore necessary for this paper's contribution but not sufficient;
+the contribution is the composition (§8). Second, real Sanskrit
+complicates the surface mapping: passivization and idiosyncratic case
+government mean the vibhakti-to-kāraka correspondence is itself
+verb-conditioned in general (§6). That table, if added, is structurally a
+frameset — but it sits at the *surface* layer only. Its output is still
+the fixed six-role vocabulary, so every rule downstream of parsing
+remains predicate-agnostic; what becomes verb-conditioned is the mapping
+from case ending to role, not the meaning of the role.
 
 ### 3.2 Formal definition
 
@@ -283,6 +306,17 @@ of a frame, used by the rule engine (§4), is defined recursively:
 facts(F) = {verb=v}  ∪  {has:r | r ∈ dom(F.bindings)}
            ∪  { r.φ | r ↦ F' ∈ F.bindings, F' a Frame, φ ∈ facts(F') }
 ```
+
+Here `verb=v` records the frame's predicate, `has:r` records that role
+`r` is bound, and `r.φ` prefixes every fact `φ` of a nested sub-frame
+with the role it hangs under. So for a harm event whose instrument is
+itself a rainfall event, `facts` contains `verb=hara`, `has:karta`,
+`has:karana`, and the nested `karana.verb=varsa`, `karana.has:karta` —
+which is what lets a rule condition on "the instrument was a natural
+event." A rule's condition language is deliberately minimal: `requires`
+is a conjunction of these atomic facts, with no negation or disjunction;
+subsumption between rules is then plain set inclusion, which is what
+keeps the ordering of §4 decidable at rule-registration time.
 
 ### 3.3 A worked example, end to end
 
@@ -387,7 +421,12 @@ order over applicable rules. If two applicable rules are
 incomparable under this order — neither a subset of the other — the engine
 raises a structural `AmbiguityError` rather than guessing, mirroring the
 way Pāṇinian commentators required an explicit tie-breaking rule when a
-conflict didn't resolve by the grammar's own ordering principles. This
+conflict didn't resolve by the grammar's own ordering principles. This is
+deliberately stricter than common practice — many rule systems default to
+"last defined wins" or fall back to declaration order — and a
+configurable tie-breaker would be easy to add; we chose rejection as the
+default because silent, order-dependent resolution is precisely the
+composability failure the manual-priority version suffered from. This
 closes the composability gap the reviewers identified, though it is worth
 noting plainly that the "requirements" a rule declares are still
 author-written, not automatically extracted from the `condition` predicate
@@ -403,15 +442,16 @@ an optional morphology module binding to `vidyut-prakriya` that replaces
 the toy suffix table with actual Aṣṭādhyāyī derivation over a registered
 lexicon — every analyzed form carries the sutra numbers that derived it
 (e.g. `aSvena` resolves to `aSva` + instrumental → *karana* via the chain
-1.2.45 → 4.1.2 → ... → 8.4.68). A 22-test suite covers: order invariance
+1.2.45 → 4.1.2 → ... → 8.4.68). A 23-test suite covers: order invariance
 across permutations; duplicate-role and missing-verb error handling; the
 five-role tort relation of §3.3; utsarga/apavada override under both
 engines, with and without a matching exception; rejection of incomparable
-rules via `AmbiguityError`; rules conditioning on nested sub-event facts;
+rules via `AmbiguityError`; a predicate-agnostic rule applying across
+different verbs (§3.1); rules conditioning on nested sub-event facts;
 nested-`Frame` arity extension with recursive codegen; query-mode
 compilation to both targets; and, when vidyut is installed, real-declension
 round-trips including rejection of out-of-lexicon and ambiguous forms. All
-22 tests pass (19 without vidyut; the morphology tests skip cleanly). This
+23 tests pass (20 without vidyut; the morphology tests skip cleanly). This
 remains a proof-of-concept evaluation, not a benchmark — no comparison
 against Prolog predicate readability or programmer performance has been
 conducted (§6).
@@ -531,7 +571,7 @@ settle.
   `karaka-core` 0.1.0, Rust crates registry, June 2026.
   https://crates.io/crates/karaka-core
 - Huet, G. Sanskrit Heritage Engine.
-- Ambuda Project. `vidyut`: segmentation, sandhi, and Ashtadhyayi-based
+- Ambuda Project. `vidyut`: segmentation, sandhi, and Aṣṭādhyāyī-based
   word derivation. https://github.com/ambuda-org/vidyut
 - Madathil, K. et al. `sanskrit_parser`.
   https://github.com/kmadathil/sanskrit_parser

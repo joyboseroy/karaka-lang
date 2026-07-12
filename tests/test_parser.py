@@ -284,3 +284,24 @@ def test_vidyut_rejects_unknown_words():
     r.add_stem("deva")
     with pytest.raises(ValueError):
         r.parse("xyzzyH gacCati", verb_forms={"gacCati": "gam"})
+
+
+def test_predicate_agnostic_rule_applies_across_different_verbs():
+    # The load-bearing claim of the paper's section 3.1: because the role
+    # vocabulary is fixed across predicates, ONE rule with no verb
+    # requirement classifies events under DIFFERENT verbs. With
+    # keyword arguments or PropBank framesets this needs a per-predicate
+    # clause or a mapping table.
+    engine = SubsumptionEngine()
+    engine.add(SubsumptionSutra(
+        name="mediated-transfer-classification",
+        requires=frozenset({"has:karana", "has:sampradana"}),  # no verb= fact
+        transform=lambda f: Frame(f.verb, {**f.roles, "class": "mediated-transfer"}),
+    ))
+    harm = parse("manah ksetraya jalena harati")   # verb: hara
+    give = parse("narah putraya dhanena dadati")   # verb: dada
+    assert engine.apply(harm).roles["class"] == "mediated-transfer"
+    assert engine.apply(give).roles["class"] == "mediated-transfer"
+    # and a frame lacking the roles is untouched, regardless of verb
+    go = parse("robotah pakasthanam gacchati")
+    assert "class" not in engine.apply(go).roles
