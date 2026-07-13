@@ -1,6 +1,6 @@
 # karaka-lang
 
-[![tests](https://img.shields.io/badge/tests-22%2F22%20passing-brightgreen)](tests/test_parser.py)
+[![tests](https://img.shields.io/badge/tests-23%2F23%20passing-brightgreen)](tests/test_parser.py)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
 
@@ -122,7 +122,7 @@ compile_frame(parse("?kah pakasthanam gacchati"), target="prolog")
 git clone https://github.com/joyboseroy/karaka-lang.git
 cd karaka-lang
 pip install -e ".[dev]"
-pytest   # 22 tests (19 pass + 3 skip without vidyut)
+pytest   # 23 tests (20 pass + 3 skip without vidyut)
 ```
 
 If `pip install -e` fails with `missing the 'build_editable' hook`, your
@@ -156,7 +156,7 @@ examples/
   arity_and_ordering_fixes.py       -- nested frames + subsumption + ambiguity
   real_morphology_and_queries.py    -- vidyut morphology with sutra traces + query mode
 tests/
-  test_parser.py                    -- 22 tests (3 skip without vidyut)
+  test_parser.py                    -- 23 tests (3 skip without vidyut)
 docs/
   DESIGN.md                         -- architecture, prior-art review
   ROADMAP.md                        -- beyond-toy status and what's next
@@ -186,13 +186,20 @@ docs/
 
 ## Status
 
-v0.3.0. 22/22 tests passing (19 without vidyut installed; the 3
-morphology tests skip cleanly). CI runs the suite on Python 3.10 through
-3.12, both with and without vidyut. Real Ashtadhyayi-backed morphology,
-nested-frame rule conditions, and query mode were added after the
-initial release; `docs/ROADMAP.md` tracks what is done and what is next.
-[Published on Medium](https://joyboseroy.medium.com/i-used-a-2-500-year-old-sanskrit-grammar-to-fix-a-modern-programming-problem-3fbc4819b0b9);
-not yet submitted to arXiv or published to PyPI.
+- [x] Design complete
+- [x] Reference implementation (23/23 tests passing; 3 skip without vidyut)
+- [x] Real Ashtadhyayi morphology via vidyut-prakriya (optional)
+- [x] Query mode (groundness decides assertion vs. query)
+- [x] IEEE-format paper with figures (`docs/Karaka_Calling_Convention.docx`)
+- [x] [Published on Medium](https://joyboseroy.medium.com/i-used-a-2-500-year-old-sanskrit-grammar-to-fix-a-modern-programming-problem-3fbc4819b0b9)
+- [ ] arXiv preprint (in submission)
+- [ ] Readability user study (Prolog vs. KCC comprehension)
+- [ ] Sandhi-aware input via vidyut-cheda
+- [ ] Verb-conditioned role mapping; dual/plural forms
+- [ ] Live graph-store execution of generated Cypher
+
+CI runs the suite on Python 3.10 through 3.12, both with and without
+vidyut. `docs/ROADMAP.md` tracks what is done and what is next.
 
 ## License
 
